@@ -307,7 +307,7 @@ class Tournament:
 
         for i in range(n_matches):
             if i == n_matches - 1 and l % 2 == 1:
-                mat = Match(f"L{m_id}", None, None, None, None, f"loser:W{ref_id}", "", None, None, is_bye=True, round=rnd, bracket=loser_bracket)
+                mat = Match(f"L{m_id}", None, 0, None, None, f"loser:W{ref_id}", "", None, None, is_bye=True, round=rnd, bracket=loser_bracket)
 
                 ref_id += 1
 
@@ -355,7 +355,7 @@ class Tournament:
                 remaining = [larger_pool[j + offset] for j in range(len(larger_pool) - offset)]
 
                 for j in range(len(remaining)):
-                    mat = Match(f"L{m_id}", None, None, None, None, remaining[j], "", None, None, is_bye=True, round=rnd, bracket=loser_bracket)
+                    mat = Match(f"L{m_id}", None, 0, None, None, remaining[j], "", None, None, is_bye=True, round=rnd, bracket=loser_bracket)
 
                     all_matches[mat.id] = mat
                     loser_bracket.rounds[i].matches.append(mat)
@@ -368,7 +368,7 @@ class Tournament:
                         mat = Match(f"L{m_id}", None, None, None, None, loser_pool[j], loser_pool[j+1], None, None, is_bye=False, round=rnd, bracket=loser_bracket)
                     
                     else:
-                        mat = Match(f"L{m_id}", None, None, None, None, loser_bracket[j], "", None, None, is_bye=True, round=rnd, bracket=loser_bracket)
+                        mat = Match(f"L{m_id}", None, 0, None, None, loser_bracket[j], "", None, None, is_bye=True, round=rnd, bracket=loser_bracket)
 
                     all_matches[mat.id] = mat
                     loser_bracket.rounds[i].matches.append(mat)
