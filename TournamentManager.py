@@ -18,6 +18,14 @@ class Player:
         return raw
 
 @dataclass
+class Round:
+    ...
+
+@dataclass
+class Bracket:
+    ...
+
+@dataclass
 class Match:
     id: str
     player1: Player | None | int
@@ -42,6 +50,8 @@ class Match:
     order: int = 0
 
     item: QGraphicsItem = None
+    round: Round = None
+    bracket: Bracket = None
 
     def export(self):
         raw: dict = {}
@@ -116,6 +126,7 @@ class GrandFinals:
 class Round:
     id: int
     matches: list[Match]
+    bracket: Bracket = None
 
     def export(self):
         raw: dict = {}
@@ -237,19 +248,20 @@ class Tournament:
         # Round 1
 
         i = 0
-        winner_bracket.rounds.append(Round(1, []))
+        rnd = Round(1, [], bracket=winner_bracket)
+        winner_bracket.rounds.append(rnd)
 
         while i < n:
             if i + 1 < n - b:
                 p1 = players[i]
                 p2 = players[i+1]
 
-                mat = Match(f"W{m_id}", p1, p2, None, None, "", "", None, None, False)
+                mat = Match(f"W{m_id}", p1, p2, None, None, "", "", None, None, is_bye=False, round=rnd, bracket=winner_bracket)
 
                 i += 2
             
             else:
-                mat = Match(f"W{m_id}", players[i], 0, None, None, "", "", None, None, True)
+                mat = Match(f"W{m_id}", players[i], 0, None, None, "", "", None, None, is_bye=True, round=rnd, bracket=winner_bracket)
 
                 i += 1
 
@@ -265,10 +277,11 @@ class Tournament:
         ref_id = 1
 
         for i in range(1, min_exp):
-            winner_bracket.rounds.append(Round(i + 1, []))
+            rnd = Round(i + 1, [], bracket=winner_bracket)
+            winner_bracket.rounds.append(rnd)
 
             for _ in range(n_rounds):
-                mat = Match(f"W{m_id}", None, None, None, None, f"winner:W{ref_id}", f"winner:W{ref_id + 1}", None, None, False)
+                mat = Match(f"W{m_id}", None, None, None, None, f"winner:W{ref_id}", f"winner:W{ref_id + 1}", None, None, is_bye=False, round=rnd, bracket=winner_bracket)
 
                 all_matches[mat.id] = mat
                 winner_bracket.rounds[i].matches.append(mat)
@@ -289,16 +302,17 @@ class Tournament:
         l = math.ceil((n - b) / 2)
         n_matches = math.ceil(l/2)
 
-        loser_bracket.rounds.append(Round(1, []))
+        rnd = Round(1, [], bracket=loser_bracket)
+        loser_bracket.rounds.append(rnd)
 
         for i in range(n_matches):
             if i == n_matches - 1 and l % 2 == 1:
-                mat = Match(f"L{m_id}", None, None, None, None, f"loser:W{ref_id}", "", None, None, True)
+                mat = Match(f"L{m_id}", None, None, None, None, f"loser:W{ref_id}", "", None, None, is_bye=True, round=rnd, bracket=loser_bracket)
 
                 ref_id += 1
 
             else:
-                mat = Match(f"L{m_id}", None, None, None, None, f"loser:W{ref_id}", f"loser:W{ref_id + 1}", None, None, False)
+                mat = Match(f"L{m_id}", None, None, None, None, f"loser:W{ref_id}", f"loser:W{ref_id + 1}", None, None, is_bye=False, round=rnd, bracket=loser_bracket)
 
                 ref_id += 2
 
@@ -309,8 +323,9 @@ class Tournament:
 
         for i in range(1, 2 * (min_exp - 1)):
             r = i + 1
-
-            loser_bracket.rounds.append(Round(r, []))
+            
+            rnd = Round(r, [], loser_bracket)
+            loser_bracket.rounds.append(rnd)
 
             loser_pool: list[str] = [f"winner:{mat.id}" for mat in loser_bracket.rounds[i - 1].matches]
 
@@ -329,7 +344,7 @@ class Tournament:
                 offset = 0
 
                 for j in range(len(smaller_pool)):
-                    mat = Match(f"L{m_id}", None, None, None, None, loser_pool[j], winner_pool[j], None, None, False)
+                    mat = Match(f"L{m_id}", None, None, None, None, loser_pool[j], winner_pool[j], None, None, is_bye=False, round=rnd, bracket=loser_bracket)
 
                     all_matches[mat.id] = mat
                     loser_bracket.rounds[i].matches.append(mat)
@@ -340,7 +355,7 @@ class Tournament:
                 remaining = [larger_pool[j + offset] for j in range(len(larger_pool) - offset)]
 
                 for j in range(len(remaining)):
-                    mat = Match(f"L{m_id}", None, None, None, None, remaining[j], "", None, None, True)
+                    mat = Match(f"L{m_id}", None, None, None, None, remaining[j], "", None, None, is_bye=True, round=rnd, bracket=loser_bracket)
 
                     all_matches[mat.id] = mat
                     loser_bracket.rounds[i].matches.append(mat)
@@ -350,10 +365,10 @@ class Tournament:
             else:
                 for j in range(0, len(loser_pool), 2):
                     if j + 1 < len(loser_pool):
-                        mat = Match(f"L{m_id}", None, None, None, None, loser_pool[j], loser_pool[j+1], None, None, False)
+                        mat = Match(f"L{m_id}", None, None, None, None, loser_pool[j], loser_pool[j+1], None, None, is_bye=False, round=rnd, bracket=loser_bracket)
                     
                     else:
-                        mat = Match(f"L{m_id}", None, None, None, None, loser_bracket[j], "", None, None, True)
+                        mat = Match(f"L{m_id}", None, None, None, None, loser_bracket[j], "", None, None, is_bye=True, round=rnd, bracket=loser_bracket)
 
                     all_matches[mat.id] = mat
                     loser_bracket.rounds[i].matches.append(mat)
@@ -363,7 +378,7 @@ class Tournament:
 
         # ======== Grand Finals ========
 
-        gf_mat = Match("GF1", None, None, None, None, f"winner:{winner_bracket.rounds[-1].matches[-1].id}", f"winner:{loser_bracket.rounds[-1].matches[-1].id}", None, None, False, True)
+        gf_mat = Match("GF1", None, None, None, None, f"winner:{winner_bracket.rounds[-1].matches[-1].id}", f"winner:{loser_bracket.rounds[-1].matches[-1].id}", None, None, is_bye=False, is_grand_final=True)
 
         all_matches[gf_mat.id] = gf_mat
 
@@ -371,7 +386,7 @@ class Tournament:
 
         Tournament._link_all_matches(all_matches)
 
-        ordered = Tournament._compute_match_order(all_matches)
+        ordered = Tournament._compute_match_order(all_matches, { "winner": winner_bracket, "loser": loser_bracket }, gf)
 
         last, current = Tournament._get_current_match(ordered)
 
@@ -405,17 +420,19 @@ class Tournament:
         brackets: dict[str, Bracket] = {}
 
         for bracket_name in brackets_dict:
+            bracket = Bracket(bracket_name, [])
+            brackets[bracket_name] = bracket
             rounds_dict = brackets_dict[bracket_name]
-            rounds: list[Round] = []
 
             for r in rounds_dict["rounds"]:
                 matches_dict = r["matches"]
+                round = Round(r["round"], [], bracket=bracket)
 
-                matches = Tournament._get_matches_from_dict(matches_dict, players, all_matches)
+                matches = Tournament._get_matches_from_dict(matches_dict, players, all_matches, round, bracket)
 
-                rounds.append(Round(r["round"], matches))
+                round.matches = matches
 
-            brackets[bracket_name] = Bracket(bracket_name, rounds)
+                bracket.rounds.append(round)
 
         grand_finals_dict = raw["grand_finals"]
 
@@ -425,7 +442,7 @@ class Tournament:
 
         Tournament._link_all_matches(all_matches)
 
-        ordered = Tournament._compute_match_order(all_matches)
+        ordered = Tournament._compute_match_order(all_matches, brackets, grand_finals)
 
         last, current = Tournament._get_current_match(ordered)
         
@@ -449,7 +466,7 @@ class Tournament:
                 return player
 
     @staticmethod
-    def _get_match_from_dict(m: dict, players: list[Player], gf: bool = False):
+    def _get_match_from_dict(m: dict, players: list[Player], round: Round = None, bracket: Bracket = None, gf: bool = False):
         if gf:
             return Match(m["id"], None, None, Tournament._get_player_from_dict(players, m["winner"]), None, m["player1_from"], m["player2_from"], None, None, is_grand_final=True)
 
@@ -457,19 +474,19 @@ class Tournament:
             player1 = Tournament._get_player_from_dict(players, m["player1"])
             player2 = Tournament._get_player_from_dict(players, m["player2"]) if not m["bye"] else 0
 
-            return Match(m["id"], player1, player2, Tournament._get_player_from_dict(players, m["winner"]), None, "", "", None, None, is_bye=m["bye"])
+            return Match(m["id"], player1, player2, Tournament._get_player_from_dict(players, m["winner"]), None, "", "", None, None, is_bye=m["bye"], round=round, bracket=bracket)
 
         if not m["bye"]:
-            return Match(m["id"], None, None, Tournament._get_player_from_dict(players, m["winner"]), None, m["player1_from"], m["player2_from"], None, None)
+            return Match(m["id"], None, None, Tournament._get_player_from_dict(players, m["winner"]), None, m["player1_from"], m["player2_from"], None, None, round=round, bracket=bracket)
 
-        return Match(m["id"], None, 0, Tournament._get_player_from_dict(players, m["winner"]), None, m["player1_from"], "", None, None, is_bye=True)
+        return Match(m["id"], None, 0, Tournament._get_player_from_dict(players, m["winner"]), None, m["player1_from"], "", None, None, is_bye=True, round=round, bracket=bracket)
 
     @staticmethod
-    def _get_matches_from_dict(matches_dict: list[dict], players: list[Player], all_matches: dict[str, Match], gf: bool = False):
+    def _get_matches_from_dict(matches_dict: list[dict], players: list[Player], all_matches: dict[str, Match], round: Round = None, bracket: Bracket = None, gf: bool = False):
         matches: list[Match] = []
 
         for m in matches_dict:
-            mat = Tournament._get_match_from_dict(m, players, gf)
+            mat = Tournament._get_match_from_dict(m, players, round, bracket, gf)
 
             matches.append(mat)
             all_matches[mat.id] = mat
@@ -557,34 +574,54 @@ class Tournament:
         
         for match_id in all_matches:
             mat = all_matches[match_id]
-
+            
             mat.loser = Tournament._get_loser_and_link_players(mat)
 
     @staticmethod
-    def _compute_match_order(all_matches: dict[str, Match]):
-        ordered: list[Match] = [m for m in all_matches.values() if m.player1_ref == ""]
-        remaining: list[Match] = [m for m in all_matches.values() if m.player1_ref != ""]
+    def _compute_match_order(all_matches: dict[str, Match], brackets: dict[str, Bracket], grand_finals: GrandFinals):
+        ordered: list[Match] = []
 
-        while remaining:
-            progress = False
+        wb_rounds = brackets["winner"].rounds
+        lb_rounds = brackets["loser"].rounds
 
-            for m in remaining:
-                parents = []
+        for i in range(len(wb_rounds[0].matches)):
+            ordered.append(all_matches[f"W{i + 1}"])
 
-                if m.player1_from is not None:
-                    parents.append(m.player1_from)
+        for i in range(len(lb_rounds[0].matches)):
+            ordered.append(all_matches[f"L{i + 1}"])
 
-                if m.player2_from is not None:
-                    parents.append(m.player2_from)
+        w_idx = len(wb_rounds[0].matches) + 1
+        l_idx = len(lb_rounds[0].matches) + 1
 
-                if all(parent in ordered for parent in parents):
-                    m.order = len(ordered)
-                    ordered.append(m)
-                    remaining.remove(m)
-                    progress = True
+        wr = 1
+        lr = 1
 
-                if not progress:
-                    raise RuntimeError("Graph contains a cycle")
+        while wr < len(wb_rounds) - 1:
+            for _ in range(len(wb_rounds[wr].matches)):
+                ordered.append(all_matches[f"W{w_idx}"])
+
+                w_idx += 1
+
+            wr += 1
+
+            for _ in range(2):
+                for _ in range(len(lb_rounds[lr].matches)):
+                    ordered.append(all_matches[f"L{l_idx}"])
+                    l_idx += 1
+
+                lr += 1
+
+        if wr < len(wb_rounds):
+            for i in range(len(wb_rounds[-1].matches)):
+                ordered.append(all_matches[f"W{w_idx}"])
+                w_idx += 1
+
+            for i in range(len(lb_rounds[-1].matches)):
+                ordered.append(all_matches[f"L{l_idx}"])
+                l_idx += 1
+        
+        for i in range(len(grand_finals.matches)):
+            ordered.append(all_matches[f"GF{i + 1}"])
 
         return ordered
 
@@ -607,7 +644,7 @@ class Tournament:
 
 class TournamentManager:
     TOURNAMENT_DIRECTORY = os.path.join(os.path.abspath(os.path.dirname(__file__)), "Data", "tournaments")
-    DEFAULT_TOURNAMENT = os.path.join(TOURNAMENT_DIRECTORY, "test.yaml")
+    DEFAULT_TOURNAMENT = os.path.join(TOURNAMENT_DIRECTORY, "double_elimination.txt")
 
     def __init__(self) -> None:
         self.tournament: Tournament = None 
