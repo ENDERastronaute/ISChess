@@ -1,9 +1,11 @@
 from dataclasses import dataclass
 import math
 from typing import Self
-from PyQt6.QtWidgets import QGraphicsItem
+from PyQt6.QtWidgets import QGraphicsItem, QWidget
 import yaml
 import os
+
+from BotWidget import BotWidget
 
 @dataclass
 class Player:
@@ -164,6 +166,9 @@ class Tournament:
     current: Match = None
     last: Match = None
 
+    arena: QWidget = None
+    view: QWidget = None
+
     def export(self):
         raw: Dict = {}
 
@@ -184,11 +189,47 @@ class Tournament:
         raw["grand_finals"] = self.grand_finals.export()
 
         return raw
+    
+    def setBots(self):
+        players = self.arena.game_manager.players
 
+        widget1: BotWidget = players[0].widget
+        widget2: BotWidget = players[1].widget
+        
+        print(self.current.player1.name)
+        print(self.current.player2.name)
+
+        widget1.playerBot.setCurrentText(self.current.player1.name)
+        widget2.playerBot.setCurrentText(self.current.player2.name)
+
+    def GFReset(self):
+        mat = Match("GF2", self.current.player2, self.current.player1, None, None, "winner:GF1", "loser:GF1", self.current, self.current, is_grand_final=True)
+
+        self.current.winner_to = mat
+        self.current.loser_to = mat
+
+        self.all_matches[mat.id] = mat
+        self.ordered_matches.append(mat)
+        self.grand_finals.matches.append(mat)
+
+        self.view.addGFMatch(mat)
+        
     def setWinnerAndNext(self, player: Player):
         self.current.setWinner(player)
+
+        if self.current.is_grand_final and self.grand_finals.reset and len(self.grand_finals.matches) < 2 and self.current.winner is self.current.player2:
+            self.GFReset()
         
         idx = self.ordered_matches.index(self.current) + 1
+
+        if self.current.winner_to is not None:
+            Tournament._get_loser_and_link_players(self.current.winner_to)
+            self.current.winner_to.item.update()
+
+        if self.current.loser_to is not None:
+            Tournament._get_loser_and_link_players(self.current.loser_to)
+            self.current.loser_to.item.update()
+
 
         self.last = self.current
 
@@ -206,13 +247,7 @@ class Tournament:
         self.current.item.update()
         self.last.item.update()
 
-        if self.last.winner_to is not None:
-            Tournament._get_loser_and_link_players(self.last.winner_to)
-            self.last.winner_to.item.update()
-
-        if self.last.loser_to is not None:
-            Tournament._get_loser_and_link_players(self.last.loser_to)
-            self.last.loser_to.item.update()
+        self.setBots()
 
         print(f"Match {self.last.id} has been won by {player.name}. Current match is now {self.current.id}")
 
@@ -674,14 +709,14 @@ class TournamentManager:
                 raw = yaml.load(f, Loader=yaml.SafeLoader)
                 self.tournament = Tournament.from_dict(raw)
             
-            return True
 
-        if ext == ".txt":
+        elif ext == ".txt":
             with open(path, 'r') as f:
                 data = f.readlines()
                 self.tournament = Tournament.from_txt(data)
 
-            return True
+        return True
+
 
     def export(self, path):
         raw = self.tournament.export()

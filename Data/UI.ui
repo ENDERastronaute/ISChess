@@ -362,6 +362,7 @@
     <property name="title">
      <string>&amp;Game</string>
     </property>
+    <addaction name="actionTournamentMode"/>
     <addaction name="actionStart"/>
     <addaction name="actionUndo"/>
     <addaction name="actionRedo"/>
@@ -431,6 +432,20 @@
    </property>
    <property name="shortcut">
     <string>Ctrl+E</string>
+   </property>
+  </action>
+  <action name="actionTournamentMode">
+   <property name="text">
+    <string>Tournament</string>
+   </property>
+   <property name="toolTip">
+    <string>Enter tournament mode</string>
+   </property>
+   <property name="statusTip">
+    <string>Enter tournament mode</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+0</string>
    </property>
   </action>
   <action name="actionStart">

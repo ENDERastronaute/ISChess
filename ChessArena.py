@@ -32,17 +32,11 @@ from Bots import *
 class ChessApp(QtWidgets.QApplication):
     def __init__(self):
         super().__init__([])
-        self.tournament = None
 
     def start(self):
         arena = ChessArena()
         arena.show()
         arena.start()
-
-        if self.tournament is None:
-            self.tournament = TournamentWindow()
-
-        self.tournament.show()
 
         self.exec()
 
@@ -54,10 +48,15 @@ class ChessArena(Ui_MainWindow, QMainWindow):
     START_ICON = QtGui.QIcon.fromTheme("media-playback-start")
     STOP_ICON = QtGui.QIcon.fromTheme("media-playback-stop")
 
+    tournament = None
+
     def __init__(self):
         super().__init__()
 
         uic.loadUi("Data/UI.ui", self)
+
+        if self.tournament is None:
+            self.tournament = TournamentWindow(self)
 
         # Render for chess board
         self.chess_scene = QtWidgets.QGraphicsScene()
@@ -80,6 +79,7 @@ class ChessArena(Ui_MainWindow, QMainWindow):
         self.actionExport.triggered.connect(self.export_board)
 
         # Game actions
+        self.actionTournamentMode.triggered.connect(self.tournament_mode)
         self.actionUndo.triggered.connect(self.game_manager.undo_move)
         self.actionStart.triggered.connect(self.game_manager.start_stop)
         self.actionRedo.triggered.connect(self.game_manager.redo_move)
@@ -243,6 +243,12 @@ class ChessArena(Ui_MainWindow, QMainWindow):
             )
 
         QTimer.singleShot(1, resize)
+
+    def tournament_mode(self):
+        self.tournament.show()
+        self.game_manager.start_tournament_mode(self.tournament.tournamentManager)
+
+        self.tournament.tournamentManager.tournament.setBots()
 
     def start(self):
         """Set up a new game"""

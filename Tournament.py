@@ -47,10 +47,12 @@ class TournamentWindow(Ui_Tournament, QWidget):
     PROJECT_DIR = os.path.abspath(os.path.dirname(__file__))
     TOURNAMENTS_DIR = os.path.join(PROJECT_DIR, "Data", "tournaments")
 
-    def __init__(self):
+    def __init__(self, arena: QWidget):
         super().__init__()
 
         self.setupUi(self)
+
+        self.arena = arena
 
         layout = QVBoxLayout(self)
         layout.addWidget(self.centralWidget)
@@ -71,6 +73,8 @@ class TournamentWindow(Ui_Tournament, QWidget):
         self.actionExport.triggered.connect(self.export_tournament)
 
         self.tournamentManager = TournamentManager()
+        self.tournamentManager.tournament.arena = self.arena
+        self.tournamentManager.tournament.view = self
 
         self.setup_view()
 
@@ -96,8 +100,9 @@ class TournamentWindow(Ui_Tournament, QWidget):
 
         t = self.tournamentManager.tournament
 
-        x_spacing = 200
+        self.x_spacing = 200
         y_spacing = MatchItem.height + 40
+
         top_margin = 40
 
         rows = 1
@@ -112,7 +117,7 @@ class TournamentWindow(Ui_Tournament, QWidget):
                 for row, mat in enumerate(rnd.matches):
                     item = MatchItem(mat, self.tournamentManager.tournament)
                     mat.item = item
-                    x = col * x_spacing
+                    x = col * self.x_spacing
                     y = top_margin + row * y_spacing
                     item.setPos(x, y)
                     self.tournament_scene.addItem(item)
@@ -124,7 +129,7 @@ class TournamentWindow(Ui_Tournament, QWidget):
 
                 rows = 1
 
-            wb_width = len(wb.rounds) * x_spacing
+            wb_width = len(wb.rounds) * self.x_spacing
         else:
             wb_width = 0
 
@@ -139,12 +144,12 @@ class TournamentWindow(Ui_Tournament, QWidget):
                 for row, mat in enumerate(rnd.matches):
                     item = MatchItem(mat, self.tournamentManager.tournament)
                     mat.item = item
-                    x = col * x_spacing
+                    x = col * self.x_spacing
                     y = top_margin + lb_vertical_offset + row * y_spacing
                     item.setPos(x, y)
                     self.tournament_scene.addItem(item)
 
-            lb_width = len(lb.rounds) * x_spacing
+            lb_width = len(lb.rounds) * self.x_spacing
         else:
             lb_width = 0
 
@@ -153,20 +158,32 @@ class TournamentWindow(Ui_Tournament, QWidget):
 
         # colonne après le plus large bracket
         gf_col = max(wb_width, lb_width)
-        gf_x = gf_col
-        gf_y = top_margin + max_matches_in_wb * y_spacing
+        self.gf_x = gf_col
+        self.gf_y = top_margin + max_matches_in_wb * y_spacing
 
-        x_offset_gf = 0
+        self.x_offset_gf = 0
+
         for mat in gf.matches:
             gf_item = MatchItem(mat, self.tournamentManager.tournament)
             mat.item = gf_item
-            gf_item.setPos(gf_x + x_offset_gf, gf_y)
-            x_offset_gf += x_spacing
+            gf_item.setPos(self.gf_x + self.x_offset_gf, self.gf_y)
+            self.x_offset_gf += self.x_spacing
 
             self.tournament_scene.addItem(gf_item)
 
         # Ajuste les bounds de la scène pour occuper toute la view
         self.tournament_scene.setSceneRect(self.tournament_scene.itemsBoundingRect())
+
+    def addGFMatch(self, mat: Match):
+        gf_item = MatchItem(mat, self.tournamentManager.tournament)
+        mat.item = gf_item
+        gf_item.setPos(self.gf_x + self.x_offset_gf, self.gf_y)
+        self.x_offset_gf += self.x_spacing
+
+        self.tournament_scene.addItem(gf_item)
+
+        self.tournament_scene.setSceneRect(self.tournament_scene.itemsBoundingRect())
+
 
     def export_tournament(self):
         """Open the export file selector and save the board"""

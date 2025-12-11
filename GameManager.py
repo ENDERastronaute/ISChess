@@ -14,6 +14,7 @@ from ParallelPlayer import ParallelTurn
 from Piece import Piece
 from PieceManager import PieceManager
 from Player import Player
+from TournamentManager import TournamentManager
 
 if TYPE_CHECKING:
     from ChessArena import ChessArena
@@ -50,6 +51,8 @@ class GameManager:
     def __init__(self, arena: ChessArena):
         self.arena: ChessArena = arena
         self.board_manager: BoardManager = BoardManager()
+        self.tournamentManager: TournamentManager = None
+        self.tournament_mode = False
         self.players: list[Player] = []
         self.turn: int = 0
         self.nbr_turn_to_play: int = 0
@@ -63,6 +66,11 @@ class GameManager:
         self.timeout.timeout.connect(lambda: self.end_turn(forced=True))
         self.min_wait = QTimer()
         self.min_wait.timeout.connect(self.end_if_finished)
+
+    def start_tournament_mode(self, tournamentManager: TournamentManager):
+        """Set tournament mode on"""
+        self.tournament_mode = True
+        self.tournamentManager = tournamentManager
 
     def reset(self):
         """Reset the game"""
@@ -414,6 +422,10 @@ class GameManager:
 
         return True
 
+    def reload_board(self):
+        """Resets the board and UI for the next tournament match"""
+        self.arena.reloadBoard.click()
+
     def check_game_end(self):
         board = self.current_player_board
         current_color = self.current_player_color
@@ -424,7 +436,15 @@ class GameManager:
                     return
 
         color_name: str = PieceManager.COLOR_NAMES[current_color]
+        
         self.arena.show_message(
             f"{color_name} player won the match", "End of game"
         )
+
         self.stop()
+
+        if self.tournament_mode:
+            tournament = self.tournamentManager.tournament
+            tournament.setWinnerAndNext(tournament.current.player1 if current_color == "w" else tournament.current.player2)
+
+            QTimer.singleShot(0, self.reload_board) # Next event
