@@ -2,17 +2,35 @@
 
 
 import os
-from PyQt6.QtCore import QRectF
+import random
+from PyQt6.QtCore import QRectF, Qt
 from PyQt6.QtGui import QColor, QPainter
 from PyQt6.QtWidgets import QFileDialog, QGraphicsItem, QGraphicsScene, QPushButton, QStyleOptionGraphicsItem, QVBoxLayout, QWidget
 
 from Data.tournament import Ui_Tournament
-from TournamentManager import Match, Tournament, TournamentManager
+from TournamentManager import Match, Player, Tournament, TournamentManager
 
 class MatchItem(QGraphicsItem):
-    width = 160
-    height = 70
-    gap = 6
+    w_name = 160
+    h_match = 70
+
+    gap = 3
+    w_padding = 10
+
+    h = (h_match - gap) // 2
+    s_idx = h
+    s_score = h
+
+    width = w_name + s_idx + s_score
+    height = h_match + gap
+
+    background_color: QColor = QColor(99, 98, 99)
+    background_color2: QColor = QColor(125, 130, 125)
+    background_color3: QColor = QColor(160, 165, 160)
+    background_color4: QColor = QColor(200, 205, 200)
+    text_color: QColor =  QColor(220, 220, 220)
+    text_color2: QColor = QColor(88, 87, 88)
+    winner_color: QColor =  QColor(66, 244, 192)
     
     def __init__(self, match: Match, tournament: Tournament):
         super().__init__()
@@ -23,24 +41,79 @@ class MatchItem(QGraphicsItem):
         return QRectF(0, 0, self.width, self.height)
 
     def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget: QWidget = ...) -> None:
-        painter.setBrush(QColor(110, 110, 110))
+        p1, id1, win1 = self.match.getPlayer1Infos()
+        p2, id2, win2 = self.match.getPlayer2Infos()
 
-        if self.match.is_bye:
-            painter.setPen(QColor(199, 255, 255))
+        self._paint_part(painter, p1, id1, win1)
+        self._paint_part(painter, p2, id2, win2, True)
 
-        if self.match is self.tournament.current:
-            painter.setPen(QColor(255, 0, 0))
+    def _paint_part(self, painter: QPainter, name, id, win: bool, player2: bool = False):
+        y_pos = 0 if not player2 else self.h + self.gap
 
-        h = (self.height - self.gap) // 2
+        alive = not self.match.can_eliminate(player2, True) or self.match.winner is None or win
 
-        painter.drawRect(QRectF(0, 0, self.width, h))
-        painter.drawRect(QRectF(0, h + 3, self.width, h))
+        if alive:
+            id_rect_color = self.background_color2
+            name_rect_color = self.background_color
+            s_rect_color = self.winner_color if win else self.background_color2
 
-        p1 = self.match.getPlayer1Name()
-        p2 = self.match.getPlayer2Name()
+            name_color = self.text_color
+            s_color = self.text_color2 if win else self.text_color
 
-        painter.drawText(10, h//2, p1)
-        painter.drawText(10, h + self.gap + h//2, p2)
+        else:
+            id_rect_color = self.background_color4
+            name_rect_color = self.background_color3
+            s_rect_color = self.background_color4
+
+            name_color = self.text_color2
+            s_color = self.text_color2
+
+        id_color = self.text_color2
+
+        painter.setBrush(id_rect_color)
+        painter.setPen(id_rect_color)
+
+        id_rect = QRectF(0, y_pos, self.s_idx, self.s_idx)
+        painter.drawRect(id_rect)
+
+        painter.setBrush(name_rect_color)
+        painter.setPen(name_rect_color)
+
+        name_rect = QRectF(self.s_idx, y_pos, self.w_name, self.h)
+        painter.drawRect(name_rect)
+
+        painter.setBrush(s_rect_color)
+        painter.setPen(s_rect_color)
+
+        s_rect = QRectF(self.s_idx + self.w_name, y_pos, self.s_score, self.s_score)
+        painter.drawRect(s_rect)
+        
+        flags = Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
+
+        painter.setPen(id_color)
+        painter.drawText(id_rect, flags, id)
+
+        painter.setPen(s_color)
+        painter.drawText(s_rect, flags, '1' if win else '0')
+
+        flags = Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+
+        painter.setPen(name_color)
+        painter.drawText(QRectF(self.s_idx + self.w_padding, y_pos, self.w_name - self.w_padding, self.h), flags, name)
+
+
+    def _is_alive(self, player: Player):
+        return self.match.bracket.id != "loser" or self.match.winner is None or self.match.winner is player
+
+
+    def _get_scores(self):
+        if self.match.winner is None:
+            return '0', '0'
+
+        if self.match.winner is self.match.player1:
+            return '1', '0'
+
+        return '0', '1'
 
 
 class TournamentWindow(Ui_Tournament, QWidget):
@@ -79,7 +152,9 @@ class TournamentWindow(Ui_Tournament, QWidget):
         self.setup_view()
 
     def testwin(self):
-        self.tournamentManager.tournament.setWinnerAndNext(self.tournamentManager.tournament.current.player1)
+        players = (self.tournamentManager.tournament.current.player1, self.tournamentManager.tournament.current.player2)
+
+        self.tournamentManager.tournament.setWinnerAndNext(random.choice(players))
 
     def select_and_load_tournament(self):
         """Open tournament file selector and load the selected file"""
@@ -102,15 +177,13 @@ class TournamentWindow(Ui_Tournament, QWidget):
 
         t = self.tournamentManager.tournament
 
-        self.x_spacing = 200
+        self.x_spacing = MatchItem.width + 140
         y_spacing = MatchItem.height + 40
 
         top_margin = 40
 
         rows = 1
         max_rows = 1
-
-        
 
         # --- Winners Bracket -----------------------------------------------------
         if "winner" in t.brackets:

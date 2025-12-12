@@ -81,23 +81,38 @@ class Match:
 
         return raw
 
-    def getPlayer1Name(self):
+    def getPlayer1Infos(self):
         if self.player1 is None:
-            return '?'
+            return '??', '?', False
 
         if self.player1 == 0:
-            return '-'
+            return '-', '-', True
 
-        return self.player1.name
+        return self.player1.name, f"{self.player1.id}", self.winner is self.player1
 
-    def getPlayer2Name(self):
+    def getPlayer2Infos(self):
         if self.player2 is None:
-            return '?'
+            return '??', '?', False
 
         if self.player2 == 0:
-            return '-'
+            return '-', '-', False
 
-        return self.player2.name
+        return self.player2.name, f"{self.player2.id}", self.winner is self.player2
+
+    def can_eliminate(self, player2: bool, reset: bool):
+        if self.is_grand_final and reset:
+            if player2:
+                return True 
+
+            if self.id == "GF2":
+                return True
+
+            return False
+
+        if self.bracket.name == "loser":
+            return True
+
+        return False
 
     def setWinner(self, player: Player):
         if self.player1 is player:

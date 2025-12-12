@@ -46,7 +46,7 @@ brackets:
 
       - round: 2
         matches:
-          - id: L3
+          - id: L2
             player1_from: winner:L1
             player2_from: loser:W3
             winner: 0
@@ -56,7 +56,7 @@ grand_finals:
   matches:
     - id: GF1
       player1_from: winner:W3
-      player2_from: winner:L3
+      player2_from: winner:L2
       winner: 0
       bye: false
 
