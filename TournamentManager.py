@@ -263,6 +263,46 @@ class Tournament:
 
         print(f"Match {self.last.id} has been won by {player.name}. Current match is now {self.current.id}")
 
+    def reset(self):
+        self.current = self.all_matches["W1"]
+        self.last = None
+
+        wb_rounds = self.brackets["winner"].rounds
+        lb_rounds = self.brackets["loser"].rounds
+        
+        for i in range(len(wb_rounds)):
+            for mat in wb_rounds[i].matches:
+                mat.winner = None
+                mat.loser = None
+                mat.item = None
+                
+                if i != 0:
+                    mat.player1 = None
+                    mat.player2 = None if not mat.is_bye else 0
+
+        for i in range(len(lb_rounds)):
+            for mat in lb_rounds[i].matches:
+                mat.winner = None
+                mat.loser = None
+                mat.item = None
+                mat.player1 = None
+                mat.player2 = None if not mat.is_bye else 0
+
+        self.view.resetGF()
+        
+        if len(self.grand_finals.matches) > 1:
+            del self.grand_finals.matches[1]
+
+        gf_mat = self.grand_finals.matches[0]
+
+        gf_mat.player1 = None
+        gf_mat.player2 = None
+        gf_mat.winner = None
+        gf_mat.loser = None
+        gf_mat.item = None
+
+        self.view.setup_view()
+
 
     @staticmethod
     def from_txt(data: list[str]):

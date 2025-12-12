@@ -149,6 +149,8 @@ class TournamentWindow(Ui_Tournament, QWidget):
         self.tournamentManager.tournament.arena = self.arena
         self.tournamentManager.tournament.view = self
 
+        self.gf_reset_item = None
+
         self.setup_view()
 
     def testwin(self):
@@ -238,7 +240,9 @@ class TournamentWindow(Ui_Tournament, QWidget):
 
         self.x_offset_gf = 0
 
-        for mat in gf.matches:
+        for i in range(len(gf.matches)):
+            mat = gf.matches[i]
+
             gf_item = MatchItem(mat, self.tournamentManager.tournament)
             mat.item = gf_item
             gf_item.setPos(self.gf_x + self.x_offset_gf, self.gf_y)
@@ -246,19 +250,26 @@ class TournamentWindow(Ui_Tournament, QWidget):
 
             self.tournament_scene.addItem(gf_item)
 
+            if i == 1:
+                self.gf_reset_item = gf_item
+
         # Ajuste les bounds de la scène pour occuper toute la view
         self.tournament_scene.setSceneRect(self.tournament_scene.itemsBoundingRect())
 
     def addGFMatch(self, mat: Match):
-        gf_item = MatchItem(mat, self.tournamentManager.tournament)
-        mat.item = gf_item
-        gf_item.setPos(self.gf_x + self.x_offset_gf, self.gf_y)
+        self.gf_reset_item = MatchItem(mat, self.tournamentManager.tournament)
+        mat.item = self.gf_reset_item
+        self.gf_reset_item.setPos(self.gf_x + self.x_offset_gf, self.gf_y)
         self.x_offset_gf += self.x_spacing
 
-        self.tournament_scene.addItem(gf_item)
+        self.tournament_scene.addItem(self.gf_reset_item)
 
         self.tournament_scene.setSceneRect(self.tournament_scene.itemsBoundingRect())
 
+    def resetGF(self):
+        if self.gf_reset_item is not None:
+            self.tournament_scene.removeItem(self.gf_reset_item)
+            self.gf_reset_item = None
 
     def export_tournament(self):
         """Open the export file selector and save the board"""
@@ -275,5 +286,6 @@ class TournamentWindow(Ui_Tournament, QWidget):
         self.tournamentManager.export(path)
 
     def reset_tournament(self):
-        print("Reset tournament action triggered.")
-        pass
+        self.tournamentManager.tournament.reset()
+
+        print("Tournament has been reset")
