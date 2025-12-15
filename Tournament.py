@@ -3,9 +3,9 @@
 
 import os
 import random
-from PyQt6.QtCore import QRectF, Qt
+from PyQt6.QtCore import QLineF, QPointF, QRectF, Qt
 from PyQt6.QtGui import QColor, QPainter
-from PyQt6.QtWidgets import QFileDialog, QGraphicsItem, QGraphicsScene, QPushButton, QStyleOptionGraphicsItem, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QFileDialog, QGraphicsItem, QGraphicsLineItem, QGraphicsScene, QPushButton, QStyleOptionGraphicsItem, QVBoxLayout, QWidget
 
 from Data.tournament import Ui_Tournament
 from TournamentManager import Match, Player, Tournament, TournamentManager
@@ -45,6 +45,14 @@ class MatchItem(QGraphicsItem):
     def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget: QWidget = ...) -> None:
         p1, id1, win1 = self.match.getPlayer1Infos()
         p2, id2, win2 = self.match.getPlayer2Infos()
+
+        is_loser = not self.match.is_grand_final and self.match.bracket.name == "loser"
+
+        if is_loser and self.match.player1_from.bracket.name != "loser":
+            p1 = f"{p1} (from {self.match.player1_from.id})"
+
+        if is_loser and not self.match.is_bye and self.match.player2_from.bracket.name != "loser":
+            p2 = f"{p2} (from {self.match.player2_from.id})"
 
         flags = Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
 
@@ -170,6 +178,9 @@ class TournamentWindow(Ui_Tournament, QWidget):
 
         self.gf_reset_item = None
 
+        self.line_margin = 10
+        self.l_line = 30
+
         self.setup_view()
 
     def startMatch(self):
@@ -196,15 +207,133 @@ class TournamentWindow(Ui_Tournament, QWidget):
             self.setup_view()
             # self.show_status("Tournament loaded")
 
+
+    def draw_ln1(self, mat1: MatchItem, mat2: MatchItem, mat3: MatchItem):
+        x1 = mat1.x() + mat1.width + self.line_margin
+        x2 = x1 + self.l_line
+        x3 = mat2.x() + mat2.width + self.line_margin
+        x4 = x3 + self.l_line
+        x6 = mat3.x() - self.line_margin
+        x5 = (x6 + x2) / 2
+
+        y1 = mat1.y() + mat1.height / 2
+        y2 = mat2.y() + mat2.height / 2
+        y3 = (y2 + y1) / 2
+        y4 = mat3.y() + mat3.height / 2
+
+        p1 = QPointF(x1, y1)
+        p2 = QPointF(x2, y1)
+        p3 = QPointF(x3, y2)
+        p4 = QPointF(x4, y2)
+        p5 = QPointF(x2, y3)
+        p6 = QPointF(x5, y3)
+        p7 = QPointF(x5, y4)
+        p8 = QPointF(x6, y4)
+
+        self.tournament_scene.addLine(QLineF(p1, p2)) #l1
+        self.tournament_scene.addLine(QLineF(p3, p4)) #l2
+        self.tournament_scene.addLine(QLineF(p2, p4)) #l3
+        self.tournament_scene.addLine(QLineF(p5, p6)) #l4
+        self.tournament_scene.addLine(QLineF(p6, p7)) #l5
+        self.tournament_scene.addLine(QLineF(p7, p8)) #l6
+
+    def draw_lngf(self, mat: MatchItem):
+        wm = mat.match.player1_from.item
+        lm = mat.match.player2_from.item
+
+        x1 = mat.x() - self.line_margin
+        x2 = lm.x() + lm.width + self.line_margin
+        x3 = x2 + self.l_line
+        x4 = wm.x() + wm.width + self.line_margin
+
+        y1 = mat.y() + mat.height / 2
+        y2 = lm.y() + lm.height / 2
+        y3 = wm.y() + wm.height / 2
+        
+        p1 = QPointF(x1, y1)
+        p2 = QPointF(x3, y1)
+        p3 = QPointF(x3, y3)
+        p4 = QPointF(x4, y3)
+        p5 = QPointF(x3, y2)
+        p6 = QPointF(x2, y2)
+
+        self.tournament_scene.addLine(QLineF(p1, p2))
+        self.tournament_scene.addLine(QLineF(p3, p5))
+        self.tournament_scene.addLine(QLineF(p3, p4))
+        self.tournament_scene.addLine(QLineF(p5, p6))
+
+
+    
+    def draw_ln2(self, mat1: MatchItem, mat2: MatchItem):
+        x1 = mat1.x() + mat1.width + self.line_margin
+        x2 = mat2.x() - self.line_margin
+
+        y1 = mat1.y() + mat1.height / 2
+        y2 = mat2.y() + mat2.height / 2
+
+        p1 = QPointF(x1, y1)
+        p2 = QPointF(x2, y2)
+
+        self.tournament_scene.addLine(QLineF(p1, p2))
+        
+
+    def draw_lines(self):
+        t = self.tournamentManager.tournament
+        wb = t.brackets["winner"]
+        lb = t.brackets["loser"]
+
+        for i in range(len(wb.rounds) - 1):
+            matches = wb.rounds[i].matches
+
+            for j in range(0, len(matches), 2):
+                mat1 = matches[j]
+                mat2 = matches[j+1].item
+                mat3 = mat1.winner_to.item
+
+                self.draw_ln1(mat1.item, mat2, mat3)
+
+        for i in range(len(lb.rounds) - 1):
+            matches = lb.rounds[i].matches
+
+            for j in range(0, len(matches), 2):
+                mat1 = matches[j]
+
+                if j == len(matches) - 1 and len(matches) % 2 == 1:
+                    mat2 = mat1.winner_to.item
+
+                    self.draw_ln2(mat1.item, mat2)
+                    continue
+                    
+
+
+                mat2 = matches[j+1].item
+                mat3 = mat1.winner_to.item
+
+                self.draw_ln1(mat1.item, mat2, mat3)
+
+        
+        gf1 = t.grand_finals.matches[0]
+
+        if len(t.grand_finals.matches) == 2:
+            gf2 = t.grand_finals.matches[1]
+
+            self.draw_ln2(gf1.item, gf2.item)
+
+        self.draw_lngf(gf1.item)
+
+
+
+
+
     def setup_view(self):
         self.tournament_scene.clear()
 
         t = self.tournamentManager.tournament
 
-        self.x_spacing = MatchItem.width + 140
+        self.x_spacing = MatchItem.width + 200
         y_spacing = MatchItem.height + 40
 
-        top_margin = 40
+        top_margin = 100
 
         rows = 1
         max_rows = 1
@@ -243,12 +372,12 @@ class TournamentWindow(Ui_Tournament, QWidget):
                 for row, mat in enumerate(rnd.matches):
                     item = MatchItem(mat, self.tournamentManager.tournament)
                     mat.item = item
-                    x = col * self.x_spacing
+                    x = (col + 1) * self.x_spacing
                     y = top_margin + lb_vertical_offset + row * y_spacing
                     item.setPos(x, y)
                     self.tournament_scene.addItem(item)
 
-            lb_width = len(lb.rounds) * self.x_spacing
+            lb_width = len(lb.rounds) * self.x_spacing + self.x_spacing
         else:
             lb_width = 0
 
@@ -275,6 +404,10 @@ class TournamentWindow(Ui_Tournament, QWidget):
             if i == 1:
                 self.gf_reset_item = gf_item
 
+
+        self.draw_lines()
+
+
         # Ajuste les bounds de la scène pour occuper toute la view
         self.tournament_scene.setSceneRect(self.tournament_scene.itemsBoundingRect())
 
@@ -285,6 +418,8 @@ class TournamentWindow(Ui_Tournament, QWidget):
         self.x_offset_gf += self.x_spacing
 
         self.tournament_scene.addItem(self.gf_reset_item)
+
+        self.draw_ln2(self.tournamentManager.tournament.grand_finals.matches[0].item, mat.item)
 
         self.tournament_scene.setSceneRect(self.tournament_scene.itemsBoundingRect())
 
