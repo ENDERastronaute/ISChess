@@ -272,8 +272,10 @@ class Tournament:
         
         for i in range(len(wb_rounds)):
             for mat in wb_rounds[i].matches:
-                mat.winner = None
-                mat.loser = None
+                if not mat.is_bye:
+                    mat.winner = None
+                    mat.loser = None
+
                 mat.item = None
                 
                 if i != 0:
@@ -282,8 +284,9 @@ class Tournament:
 
         for i in range(len(lb_rounds)):
             for mat in lb_rounds[i].matches:
-                mat.winner = None
-                mat.loser = None
+                if not mat.is_bye:
+                    mat.winner = None
+                    mat.loser = None
                 mat.item = None
                 mat.player1 = None
                 mat.player2 = None if not mat.is_bye else 0
