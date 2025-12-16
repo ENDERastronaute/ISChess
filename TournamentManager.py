@@ -230,9 +230,22 @@ class Tournament:
 
         return raw
     
-    def replay(self, mat: Match):
+    def replay(self, mat: Match, inverted: bool):
         if mat.winner is None or mat.is_bye:
             return False
+
+        if inverted:
+            p1 = mat.player1
+            p1_from = mat.player1_from
+            p1_ref = mat.player1_ref
+
+            mat.player1 = mat.player2
+            mat.player1_from = mat.player2_from
+            mat.player1_ref = mat.player2_ref
+
+            mat.player2 = p1
+            mat.player2_from = p1_from
+            mat.player2_ref = p1_ref
 
         self.won = False
 

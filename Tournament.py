@@ -5,7 +5,7 @@ import os
 import random
 from PyQt6.QtCore import QEvent, QLineF, QPointF, QRectF, Qt
 from PyQt6.QtGui import QColor, QPainter
-from PyQt6.QtWidgets import QFileDialog, QGraphicsView, QGraphicsItem, QGraphicsScene, QGraphicsSceneMouseEvent, QPushButton, QStyleOptionGraphicsItem, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QFileDialog, QGraphicsView, QGraphicsItem, QGraphicsScene, QGraphicsSceneMouseEvent, QHBoxLayout, QPushButton, QStyleOptionGraphicsItem, QVBoxLayout, QWidget
 
 from Data.tournament import Ui_Tournament
 from TournamentManager import Match, Player, Tournament, TournamentManager
@@ -164,15 +164,23 @@ class TournamentWindow(Ui_Tournament, QWidget):
 
         self.arena = arena
 
-        layout = QVBoxLayout(self)
-        layout.addWidget(self.centralWidget)
+        main_layout = QVBoxLayout(self)
+        main_layout.addWidget(self.centralWidget)
+
+        match_btn_layout = QHBoxLayout()
+
+        main_layout.addLayout(match_btn_layout)
 
         self.replay_button = QPushButton(self)
         self.replay_button.setText("Replay match")
+        self.inv_rep_button = QPushButton(self)
+        self.inv_rep_button.setText("Invert and replay match")
 
-        self.replay_button.clicked.connect(self.replay_selected_match) 
+        self.replay_button.clicked.connect(lambda: self.replay_selected_match(False)) 
+        self.inv_rep_button.clicked.connect(lambda: self.replay_selected_match(True))
 
-        layout.addWidget(self.replay_button)
+        match_btn_layout.addWidget(self.replay_button)
+        match_btn_layout.addWidget(self.inv_rep_button)
 
         # Render for tournament
         self.tournament_scene = QGraphicsScene()
@@ -213,7 +221,7 @@ class TournamentWindow(Ui_Tournament, QWidget):
     def start_match(self):
         self.arena.game_manager.reload_and_start()
 
-    def replay_selected_match(self):
+    def replay_selected_match(self, inverted: bool):
         selected_items = self.tournament_scene.selectedItems()
         match_items = [item for item in selected_items if isinstance(item, MatchItem)]
 
@@ -228,9 +236,9 @@ class TournamentWindow(Ui_Tournament, QWidget):
         selected_match_item = match_items[0]
         mat = selected_match_item.match
 
-        if not self.tournament_manager.tournament.replay(mat):
+        if not self.tournament_manager.tournament.replay(mat, inverted):
             print("Match hasn't been played yet or is a bye.")
-            return        
+            return
 
 
     def select_and_load_tournament(self):
