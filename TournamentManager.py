@@ -81,7 +81,7 @@ class Match:
 
         return raw
 
-    def getPlayer1Infos(self):
+    def get_player1_infos(self):
         if self.player1 is None:
             return '??', '?', False
 
@@ -90,7 +90,7 @@ class Match:
 
         return self.player1.name, f"{self.player1.id}", self.winner is self.player1
 
-    def getPlayer2Infos(self):
+    def get_player2_infos(self):
         if self.player2 is None:
             return '??', '?', False
 
@@ -122,6 +122,29 @@ class Match:
         else:
             self.winner = self.player2
             self.loser = self.player1
+
+
+    def reset(self, complete: bool = False):
+        if self.player1_from is not None and not self.player1_from.is_bye:
+            self.player1 = None
+
+        if not self.is_bye:
+            self.winner = None
+            self.loser = None
+
+            if self.player2_from is not None and not self.player2_from.is_bye:
+                self.player2 = None
+
+        if self.winner_to is not None:
+            self.winner_to.reset(complete)
+
+        if self.loser_to is not None:
+            self.loser_to.reset(complete)
+        
+        if complete:
+            self.item = None
+        else:
+            self.item.update()
 
 
 @dataclass
@@ -207,7 +230,29 @@ class Tournament:
 
         return raw
     
-    def setBots(self):
+    def replay(self, mat: Match):
+        if mat.winner is None or mat.is_bye:
+            return False
+
+        self.won = False
+
+        mat.winner = None
+        mat.loser = None
+
+        if mat.winner_to is not None:
+            mat.winner_to.reset()
+
+        if mat.loser_to is not None:
+            mat.loser_to.reset()
+
+        self.last = self.current
+        self.current = mat
+
+        mat.item.update()
+
+        return True
+    
+    def set_bots(self):
         players = self.arena.game_manager.players
 
         widget1: BotWidget = players[0].widget
@@ -216,7 +261,7 @@ class Tournament:
         widget1.playerBot.setCurrentText(self.current.player1.name)
         widget2.playerBot.setCurrentText(self.current.player2.name)
 
-    def GFReset(self):
+    def gf_reset(self):
         mat = Match("GF2", self.current.player2, self.current.player1, None, None, "winner:GF1", "loser:GF1", self.current, self.current, is_grand_final=True)
 
         self.current.winner_to = mat
@@ -226,19 +271,19 @@ class Tournament:
         self.ordered_matches.append(mat)
         self.grand_finals.matches.append(mat)
 
-        self.view.addGFMatch(mat)
+        self.view.add_gf_match(mat)
 
-    def checkTournamentWin(self):
+    def check_tournament_win(self):
         if self.current.is_grand_final and ( ( self.current.id == "GF2" and self.current.winner is not None ) or self.current.winner is self.current.player1 ):
             self.won = True
         
-    def setWinnerAndNext(self, player: Player):
+    def set_winner_and_next(self, player: Player):
         self.current.setWinner(player)
 
         if self.current.is_grand_final and self.grand_finals.reset and len(self.grand_finals.matches) < 2 and self.current.winner is self.current.player2:
-            self.GFReset()
+            self.gf_reset()
 
-        self.checkTournamentWin()
+        self.check_tournament_win()
         
         idx = self.ordered_matches.index(self.current) + 1
 
@@ -254,11 +299,13 @@ class Tournament:
         self.last = self.current
 
         while idx < len(self.ordered_matches):
-            if self.ordered_matches[idx].is_bye:
+            mat = self.ordered_matches[idx]
+
+            if mat.is_bye or mat.winner is not None:
                 idx += 1
                 continue
 
-            self.current = self.ordered_matches[idx]
+            self.current = mat
             break
         
         if self.current.player1 is None or self.current.player2 is None:
@@ -267,40 +314,29 @@ class Tournament:
         self.current.item.update()
         self.last.item.update()
 
-        self.setBots()
+        self.set_bots()
 
         print(f"Match {self.last.id} has been won by {player.name}. Current match is now {self.current.id}")
 
     def reset(self):
-        self.current = self.all_matches["W1"]
+        self.current = self.ordered_matches[0]
         self.last = None
         self.won = False
 
         wb_rounds = self.brackets["winner"].rounds
-        lb_rounds = self.brackets["loser"].rounds
         
-        for i in range(len(wb_rounds)):
-            for mat in wb_rounds[i].matches:
-                if not mat.is_bye:
-                    mat.winner = None
-                    mat.loser = None
+        for mat in wb_rounds[0].matches:
+            if not mat.is_bye:
+                mat.winner = None
+                mat.loser = None
 
-                mat.item = None
-                
-                if i != 0:
-                    mat.player1 = None
-                    mat.player2 = None if not mat.is_bye else 0
+            mat.item = None
+            mat.winner_to.reset(True)
 
-        for i in range(len(lb_rounds)):
-            for mat in lb_rounds[i].matches:
-                if not mat.is_bye:
-                    mat.winner = None
-                    mat.loser = None
-                mat.item = None
-                mat.player1 = None
-                mat.player2 = None if not mat.is_bye else 0
+            if mat.loser_to is not None:
+                mat.loser_to.reset(True)
 
-        self.view.resetGF()
+        self.view.reset_gf()
         
         if len(self.grand_finals.matches) > 1:
             del self.grand_finals.matches[1]
@@ -547,7 +583,7 @@ class Tournament:
         
         tournament = Tournament(name, type, brackets, players, grand_finals, all_matches, ordered, current, last)
         
-        tournament.checkTournamentWin()
+        tournament.check_tournament_win()
 
         return tournament
 
@@ -680,11 +716,19 @@ class Tournament:
         wb_rounds = brackets["winner"].rounds
         lb_rounds = brackets["loser"].rounds
 
+        order = 0
+
         for i in range(len(wb_rounds[0].matches)):
-            ordered.append(all_matches[f"W{i + 1}"])
+            mat = all_matches[f"W{i + 1}"]
+            mat.order = order
+            ordered.append(mat)
+            order += 1
 
         for i in range(len(lb_rounds[0].matches)):
-            ordered.append(all_matches[f"L{i + 1}"])
+            mat = all_matches[f"L{i + 1}"]
+            mat.order = order
+            ordered.append(mat)
+            order += 1
 
         w_idx = len(wb_rounds[0].matches) + 1
         l_idx = len(lb_rounds[0].matches) + 1
@@ -694,30 +738,49 @@ class Tournament:
 
         while wr < len(wb_rounds) - 1:
             for _ in range(len(wb_rounds[wr].matches)):
-                ordered.append(all_matches[f"W{w_idx}"])
+                mat = all_matches[f"W{w_idx}"]
+                mat.order = order
+                ordered.append(mat)
 
                 w_idx += 1
+                order += 1
 
             wr += 1
 
             for _ in range(2):
                 for _ in range(len(lb_rounds[lr].matches)):
-                    ordered.append(all_matches[f"L{l_idx}"])
+                    mat = all_matches[f"L{l_idx}"]
+                    mat.order = order
+                    ordered.append(mat)
+
                     l_idx += 1
+                    order += 1
 
                 lr += 1
 
         if wr < len(wb_rounds):
             for i in range(len(wb_rounds[-1].matches)):
-                ordered.append(all_matches[f"W{w_idx}"])
+                mat = all_matches[f"W{w_idx}"]
+                mat.order = order
+                ordered.append(mat)
+
                 w_idx += 1
+                order += 1
 
             for i in range(len(lb_rounds[-1].matches)):
-                ordered.append(all_matches[f"L{l_idx}"])
+                mat = all_matches[f"L{l_idx}"]
+                mat.order = order
+                ordered.append(mat)
+
                 l_idx += 1
+                order += 1
         
         for i in range(len(grand_finals.matches)):
-            ordered.append(all_matches[f"GF{i + 1}"])
+            mat = all_matches[f"GF{i + 1}"]
+            mat.order = order
+            ordered.append(mat)
+
+            order += 1
 
         return ordered
 

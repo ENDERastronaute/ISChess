@@ -47,8 +47,8 @@ class MatchItem(QGraphicsItem):
         return QRectF(0, 0, self.width, self.height)
 
     def paint(self, painter: QPainter, option: QStyleOptionGraphicsItem, widget: QWidget = ...) -> None:
-        p1, id1, win1 = self.match.getPlayer1Infos()
-        p2, id2, win2 = self.match.getPlayer2Infos()
+        p1, id1, win1 = self.match.get_player1_infos()
+        p2, id2, win2 = self.match.get_player2_infos()
 
         is_loser = not self.match.is_grand_final and self.match.bracket.name == "loser"
 
@@ -167,11 +167,12 @@ class TournamentWindow(Ui_Tournament, QWidget):
         layout = QVBoxLayout(self)
         layout.addWidget(self.centralWidget)
 
-        self.testbtn = QPushButton(self)
+        self.replay_button = QPushButton(self)
+        self.replay_button.setText("Replay match")
 
-        self.testbtn.clicked.connect(self.testwin) 
+        self.replay_button.clicked.connect(self.replay_selected_match) 
 
-        layout.addWidget(self.testbtn)
+        layout.addWidget(self.replay_button)
 
         # Render for tournament
         self.tournament_scene = QGraphicsScene()
@@ -182,14 +183,14 @@ class TournamentWindow(Ui_Tournament, QWidget):
         self.tournamentView.viewport().installEventFilter(self)
 
         # Tournament actions
-        self.actionStart.triggered.connect(self.startMatch)
+        self.actionStart.triggered.connect(self.start_match)
         self.actionLoad.triggered.connect(self.select_and_load_tournament)
         self.actionReset.triggered.connect(self.reset_tournament)
         self.actionExport.triggered.connect(self.export_tournament)
 
-        self.tournamentManager = TournamentManager()
-        self.tournamentManager.tournament.arena = self.arena
-        self.tournamentManager.tournament.view = self
+        self.tournament_manager = TournamentManager()
+        self.tournament_manager.tournament.arena = self.arena
+        self.tournament_manager.tournament.view = self
 
         self.gf_reset_item = None
 
@@ -209,13 +210,28 @@ class TournamentWindow(Ui_Tournament, QWidget):
             return True
         return super().eventFilter(source, event)
 
-    def startMatch(self):
+    def start_match(self):
         self.arena.game_manager.reload_and_start()
 
-    def testwin(self):
-        players = (self.tournamentManager.tournament.current.player1, self.tournamentManager.tournament.current.player2)
+    def replay_selected_match(self):
+        selected_items = self.tournament_scene.selectedItems()
+        match_items = [item for item in selected_items if isinstance(item, MatchItem)]
 
-        self.tournamentManager.tournament.setWinnerAndNext(random.choice(players))
+        if len(match_items) == 0:
+            print("No match selected for replay.")
+            return
+
+        if len(match_items) > 1:
+            print("Multiple matches selected. Please select only one match to replay.")
+            return
+
+        selected_match_item = match_items[0]
+        mat = selected_match_item.match
+
+        if not self.tournament_manager.tournament.replay(mat):
+            print("Match hasn't been played yet or is a bye.")
+            return        
+
 
     def select_and_load_tournament(self):
         """Open tournament file selector and load the selected file"""
@@ -227,9 +243,9 @@ class TournamentWindow(Ui_Tournament, QWidget):
             return
         path = path[0]
 
-        if self.tournamentManager.load_file(path):
-            self.tournamentManager.tournament.arena = self.arena
-            self.tournamentManager.tournament.view = self
+        if self.tournament_manager.load_file(path):
+            self.tournament_manager.tournament.arena = self.arena
+            self.tournament_manager.tournament.view = self
             self.setup_view()
             # self.show_status("Tournament loaded")
 
@@ -304,7 +320,7 @@ class TournamentWindow(Ui_Tournament, QWidget):
         
 
     def draw_lines(self):
-        t = self.tournamentManager.tournament
+        t = self.tournament_manager.tournament
         wb = t.brackets["winner"]
         lb = t.brackets["loser"]
 
@@ -348,13 +364,10 @@ class TournamentWindow(Ui_Tournament, QWidget):
         self.draw_lngf(gf1.item)
 
 
-
-
-
     def setup_view(self):
         self.tournament_scene.clear()
 
-        t = self.tournamentManager.tournament
+        t = self.tournament_manager.tournament
 
         self.x_spacing = MatchItem.width + 200
         y_spacing = MatchItem.height + 40
@@ -369,7 +382,7 @@ class TournamentWindow(Ui_Tournament, QWidget):
             wb = t.brackets["winner"]
             for col, rnd in enumerate(wb.rounds):
                 for row, mat in enumerate(rnd.matches):
-                    item = MatchItem(mat, self.tournamentManager.tournament)
+                    item = MatchItem(mat, self.tournament_manager.tournament)
                     mat.item = item
                     x = col * self.x_spacing
                     y = top_margin + row * y_spacing
@@ -396,7 +409,7 @@ class TournamentWindow(Ui_Tournament, QWidget):
             lb = t.brackets["loser"]
             for col, rnd in enumerate(lb.rounds):
                 for row, mat in enumerate(rnd.matches):
-                    item = MatchItem(mat, self.tournamentManager.tournament)
+                    item = MatchItem(mat, self.tournament_manager.tournament)
                     mat.item = item
                     x = (col + 1) * self.x_spacing
                     y = top_margin + lb_vertical_offset + row * y_spacing
@@ -419,7 +432,7 @@ class TournamentWindow(Ui_Tournament, QWidget):
         for i in range(len(gf.matches)):
             mat = gf.matches[i]
 
-            gf_item = MatchItem(mat, self.tournamentManager.tournament)
+            gf_item = MatchItem(mat, self.tournament_manager.tournament)
             mat.item = gf_item
             gf_item.setPos(self.gf_x + self.x_offset_gf, self.gf_y)
             self.x_offset_gf += self.x_spacing
@@ -434,19 +447,19 @@ class TournamentWindow(Ui_Tournament, QWidget):
 
         self.tournament_scene.setSceneRect(self.tournament_scene.itemsBoundingRect())
 
-    def addGFMatch(self, mat: Match):
-        self.gf_reset_item = MatchItem(mat, self.tournamentManager.tournament)
+    def add_gf_match(self, mat: Match):
+        self.gf_reset_item = MatchItem(mat, self.tournament_manager.tournament)
         mat.item = self.gf_reset_item
         self.gf_reset_item.setPos(self.gf_x + self.x_offset_gf, self.gf_y)
         self.x_offset_gf += self.x_spacing
 
         self.tournament_scene.addItem(self.gf_reset_item)
 
-        self.draw_ln2(self.tournamentManager.tournament.grand_finals.matches[0].item, mat.item)
+        self.draw_ln2(self.tournament_manager.tournament.grand_finals.matches[0].item, mat.item)
 
         self.tournament_scene.setSceneRect(self.tournament_scene.itemsBoundingRect())
 
-    def resetGF(self):
+    def reset_gf(self):
         if self.gf_reset_item is not None:
             self.tournament_scene.removeItem(self.gf_reset_item)
             self.gf_reset_item = None
@@ -463,9 +476,9 @@ class TournamentWindow(Ui_Tournament, QWidget):
             return
 
         # self.show_status("Tournament exported")
-        self.tournamentManager.export(path)
+        self.tournament_manager.export(path)
 
     def reset_tournament(self):
-        self.tournamentManager.tournament.reset()
+        self.tournament_manager.tournament.reset()
 
         print("Tournament has been reset")

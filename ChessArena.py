@@ -248,9 +248,9 @@ class ChessArena(Ui_MainWindow, QMainWindow):
 
     def tournament_mode(self):
         self.tournament.show()
-        self.game_manager.start_tournament_mode(self.tournament.tournamentManager)
+        self.game_manager.start_tournament_mode(self.tournament.tournament_manager)
 
-        self.tournament.tournamentManager.tournament.setBots()
+        self.tournament.tournament_manager.tournament.set_bots()
 
     def start(self):
         """Set up a new game"""
