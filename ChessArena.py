@@ -85,6 +85,9 @@ class ChessArena(Ui_MainWindow, QMainWindow):
         self.actionUndo.triggered.connect(self.game_manager.undo_move)
         self.actionStart.triggered.connect(self.game_manager.start_stop)
         self.actionRedo.triggered.connect(self.game_manager.redo_move)
+        
+        self.whiteBotWins.clicked.connect(self.manual_white_win)
+        self.blackBotWins.clicked.connect(self.manual_black_win)
 
         self.movesList.resizeColumnsToContents()
 
@@ -251,6 +254,20 @@ class ChessArena(Ui_MainWindow, QMainWindow):
         self.game_manager.start_tournament_mode(self.tournament.tournament_manager)
 
         self.tournament.tournament_manager.tournament.set_bots()
+
+    def manual_white_win(self):
+        if self.game_manager.tournament_mode:
+            t = self.tournament.tournament_manager.tournament
+            t.set_winner_and_next(t.current.player1)
+
+        self.game_manager.game_end(PieceManager.COLOR_NAMES["w"], True)
+
+    def manual_black_win(self):
+        if self.game_manager.tournament_mode:
+            t = self.tournament.tournament_manager.tournament
+            t.set_winner_and_next(t.current.player2)
+
+        self.game_manager.game_end(PieceManager.COLOR_NAMES["b"], True)
 
     def start(self):
         """Set up a new game"""

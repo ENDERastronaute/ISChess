@@ -462,16 +462,20 @@ class GameManager:
                     return
 
         color_name: str = PieceManager.COLOR_NAMES[current_color]
+        print(f"color : {current_color}")
         
+        self.game_end(color_name, False)
+
+    def game_end(self, color_name, manual: bool):
         self.arena.show_message(
             f"{color_name} player won the match", "End of game"
         )
 
         self.stop()
 
-        if self.tournament_mode:
+        if self.tournament_mode and not manual:
             tournament = self.tournament_manager.tournament
             tournament.set_winner_and_next(tournament.current.player1 if current_color == "w" else tournament.current.player2)
 
-            if not tournament.won:
-                QTimer.singleShot(5000, self.reload_and_start)
+        if self.tournament_mode and not self.tournament_manager.tournament.won:
+            QTimer.singleShot(5000, self.reload_and_start)
