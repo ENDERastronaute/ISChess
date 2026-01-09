@@ -472,7 +472,7 @@ class GameManager:
         )
 
         self.stop()
-
+        current_color = self.current_player_color
         if self.tournament_mode and not manual:
             tournament = self.tournament_manager.tournament
             tournament.set_winner_and_next(tournament.current.player1 if current_color == "w" else tournament.current.player2)
