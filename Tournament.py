@@ -1,8 +1,8 @@
 
 
 
+import math
 import os
-import random
 from PyQt6.QtCore import QEvent, QLineF, QPointF, QRectF, Qt
 from PyQt6.QtGui import QColor, QPainter
 from PyQt6.QtWidgets import QFileDialog, QGraphicsView, QGraphicsItem, QGraphicsScene, QGraphicsSceneMouseEvent, QHBoxLayout, QPushButton, QStyleOptionGraphicsItem, QVBoxLayout, QWidget
@@ -260,12 +260,14 @@ class TournamentWindow(Ui_Tournament, QWidget):
 
 
     def draw_ln1(self, mat1: MatchItem, mat2: MatchItem, mat3: MatchItem):
+        bracket_pos = mat1.match.round.matches.index(mat1.match)
+
         x1 = mat1.x() + mat1.width + self.line_margin
         x2 = x1 + self.l_line
         x3 = mat2.x() + mat2.width + self.line_margin
         x4 = x3 + self.l_line
         x6 = mat3.x() - self.line_margin
-        x5 = (x6 + x2) / 2
+        x5 = x2 + self.l_line + bracket_pos * (self.l_line / 2)
 
         y1 = mat1.y() + mat1.height / 2
         y2 = mat2.y() + mat2.height / 2
@@ -378,7 +380,10 @@ class TournamentWindow(Ui_Tournament, QWidget):
 
         t = self.tournament_manager.tournament
 
-        self.x_spacing = MatchItem.width + 200
+        len_r1 = len(t.brackets["winner"].rounds[0].matches)
+
+        self.x_spacing = MatchItem.width + 200 + max([0, len_r1-8]) * self.l_line/2
+
         y_spacing = MatchItem.height + 40
 
         top_margin = 100
