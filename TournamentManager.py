@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime
 import math
 from typing import Self
 from PyQt6.QtWidgets import QGraphicsItem, QWidget
@@ -25,6 +26,10 @@ class Round:
 
 @dataclass
 class Bracket:
+    ...
+
+@dataclass
+class TournamentManager:
     ...
 
 @dataclass
@@ -208,6 +213,7 @@ class Tournament:
 
     arena: QWidget = None
     view: QWidget = None
+    manager: TournamentManager = None
 
     def export(self):
         raw: Dict = {}
@@ -329,6 +335,14 @@ class Tournament:
 
         self.set_bots()
 
+        current_date = datetime.today().strftime('%d-%m-%Y')
+        export_path = f"./Data/tournaments/{current_date}"
+
+        if not os.path.exists(export_path):
+            os.mkdir(export_path)
+
+        self.manager.export(os.path.join(export_path, f"match_{self.current.order}.yaml"))
+
         print(f"Match {self.last.id} has been won by {player.name}. Current match is now {self.current.id}")
 
     def reset(self):
@@ -366,7 +380,7 @@ class Tournament:
 
 
     @staticmethod
-    def from_txt(data: list[str]):
+    def from_txt(data: list[str], manager: TournamentManager):
         name = data[0].strip()
 
         players_strings = data[1].strip().split(',')
@@ -543,14 +557,14 @@ class Tournament:
             "loser": loser_bracket
         }
 
-        return Tournament(name, "double_elimination", brackets, players, gf, all_matches, ordered, current, last)
+        return Tournament(name, "double_elimination", brackets, players, gf, all_matches, ordered, current, last, manager=manager)
 
         
     #----------------------- YAML ----------------------    
     
 
     @staticmethod
-    def from_dict(raw: dict):
+    def from_dict(raw: dict, manager: TournamentManager):
         name = raw["tournament"]["name"]
         type = raw["tournament"]["type"]
         players_raw = raw["players"]
@@ -593,8 +607,8 @@ class Tournament:
         ordered = Tournament._compute_match_order(all_matches, brackets, grand_finals)
 
         last, current = Tournament._get_current_match(ordered)
-        
-        tournament = Tournament(name, type, brackets, players, grand_finals, all_matches, ordered, current, last)
+
+        tournament = Tournament(name, type, brackets, players, grand_finals, all_matches, ordered, current, last, manager=manager)
         
         tournament.check_tournament_win()
 
@@ -733,15 +747,21 @@ class Tournament:
 
         for i in range(len(wb_rounds[0].matches)):
             mat = all_matches[f"W{i + 1}"]
-            mat.order = order
+
+            if not mat.is_bye:
+                mat.order = order
+                order += 1
+
             ordered.append(mat)
-            order += 1
 
         for i in range(len(lb_rounds[0].matches)):
             mat = all_matches[f"L{i + 1}"]
-            mat.order = order
+            
+            if not mat.is_bye:
+                mat.order = order
+                order += 1
+
             ordered.append(mat)
-            order += 1
 
         w_idx = len(wb_rounds[0].matches) + 1
         l_idx = len(lb_rounds[0].matches) + 1
@@ -752,48 +772,62 @@ class Tournament:
         while wr < len(wb_rounds) - 1:
             for _ in range(len(wb_rounds[wr].matches)):
                 mat = all_matches[f"W{w_idx}"]
-                mat.order = order
+                
+                if not mat.is_bye:
+                    mat.order = order
+                    order += 1
+
                 ordered.append(mat)
 
                 w_idx += 1
-                order += 1
 
             wr += 1
 
             for _ in range(2):
                 for _ in range(len(lb_rounds[lr].matches)):
                     mat = all_matches[f"L{l_idx}"]
-                    mat.order = order
+                    
+                    if not mat.is_bye:
+                        mat.order = order
+                        order += 1
+
                     ordered.append(mat)
 
                     l_idx += 1
-                    order += 1
 
                 lr += 1
 
         if wr < len(wb_rounds):
             for i in range(len(wb_rounds[-1].matches)):
                 mat = all_matches[f"W{w_idx}"]
-                mat.order = order
+                
+                if not mat.is_bye:
+                    mat.order = order
+                    order += 1
+
                 ordered.append(mat)
 
                 w_idx += 1
-                order += 1
 
             for i in range(len(lb_rounds[-1].matches)):
                 mat = all_matches[f"L{l_idx}"]
-                mat.order = order
+                
+                if not mat.is_bye:
+                    mat.order = order
+                    order += 1
+
                 ordered.append(mat)
 
                 l_idx += 1
-                order += 1
         
         for i in range(len(grand_finals.matches)):
             mat = all_matches[f"GF{i + 1}"]
-            mat.order = order
-            ordered.append(mat)
+            
+            if not mat.is_bye:
+                mat.order = order
+                order += 1
 
-            order += 1
+            ordered.append(mat)
 
         return ordered
 
@@ -844,13 +878,13 @@ class TournamentManager:
         if ext == ".yaml":
             with open(path, 'r') as f:
                 raw = yaml.load(f, Loader=yaml.SafeLoader)
-                self.tournament = Tournament.from_dict(raw)
+                self.tournament = Tournament.from_dict(raw, self)
             
 
         elif ext == ".txt":
             with open(path, 'r') as f:
                 data = f.readlines()
-                self.tournament = Tournament.from_txt(data)
+                self.tournament = Tournament.from_txt(data, self)
 
         return True
 
